@@ -7,3 +7,12 @@
 参考资料：
 https://www.dji.com/cn
 https://aiskyeye.com/
+
+
+  This is a code bundle for 无人机智能分析系统原型. The original project is available at https://www.figma.com/design/mPVCeFKREqgLPdkYYKtpLo/%E6%97%A0%E4%BA%BA%E6%9C%BA%E6%99%BA%E8%83%BD%E5%88%86%E6%9E%90%E7%B3%BB%E7%BB%9F%E5%8E%9F%E5%9E%8B.
+
+  ## Running the code
+
+  Run `npm i` to install the dependencies.
+
+  Run `npm run dev` to start the development server.
