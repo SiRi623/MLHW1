@@ -89,6 +89,8 @@ export function RoutePlanning() {
   const [newRouteName, setNewRouteName] = useState("");
   const [previewMode, setPreviewMode] = useState(false);
   const [expandedWp, setExpandedWp] = useState<number | null>(1);
+  const [showToast, setShowToast] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const updateWaypoint = (id: number, field: keyof Waypoint, value: number | string) => {
     const updated = {
@@ -149,6 +151,27 @@ export function RoutePlanning() {
     const updated = { ...selectedRoute, [field]: value };
     setSelectedRoute(updated);
     setRoutes((p) => p.map((r) => (r.id === selectedRoute.id ? updated : r)));
+
+  };
+  const handleSave = () => {
+      // 显示提示
+    setShowToast(true);
+      // 3秒后自动隐藏
+    setTimeout(() => setShowToast(false), 3000);
+  };
+  const handleExecute = () => {
+  setShowConfirm(true);
+  };
+
+  const confirmExecute = () => {
+    setShowConfirm(false);
+    // 这里可以添加实际执行航线的逻辑
+    // 例如：调用API、显示执行中状态等
+    alert(`正在执行航线：${selectedRoute.name}`);
+  };
+
+  const cancelExecute = () => {
+    setShowConfirm(false);
   };
 
   return (
@@ -632,12 +655,14 @@ export function RoutePlanning() {
         {/* Save Button */}
         <div className="p-4 flex gap-3" style={{ borderTop: "1px solid #1e2d4a" }}>
           <button
+            onClick={handleSave}
             className="flex-1 py-2.5 rounded-lg flex items-center justify-center gap-2"
             style={{ background: "linear-gradient(135deg, #0055cc, #00b4ff)", color: "#fff", fontSize: "13px" }}
           >
             <Save size={13} /> 保存航线
           </button>
           <button
+            onClick={handleExecute}
             className="px-4 py-2.5 rounded-lg flex items-center justify-center gap-2"
             style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", color: "#22c55e", fontSize: "13px" }}
           >
@@ -645,6 +670,51 @@ export function RoutePlanning() {
           </button>
         </div>
       </div>
+      {/* 保存提示 Toast */}
+      {showToast && (
+        <div
+          className="fixed bottom-20 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-50"
+          style={{
+            background: "#22c55e",
+            color: "#fff",
+            fontSize: "14px",
+          }}
+        >
+          ✅ 航线保存成功！
+        </div>
+      )}
+      {/* 执行确认弹窗 */}
+      {showConfirm && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={cancelExecute}
+        >
+          <div
+            className="bg-[#0b1120] rounded-xl p-5 w-80 border border-[#1e2d4a]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-white text-lg font-semibold mb-2">确认执行</h3>
+            <p className="text-[#94a3b8] text-sm mb-4">
+              确定要执行航线「{selectedRoute.name}」吗？
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={confirmExecute}
+                className="flex-1 py-2 rounded-lg bg-gradient-to-r from-[#0055cc] to-[#00b4ff] text-white text-sm"
+              >
+                确认执行
+              </button>
+              <button
+                onClick={cancelExecute}
+                className="flex-1 py-2 rounded-lg bg-[#060c1a] border border-[#1e2d4a] text-[#94a3b8] text-sm"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
