@@ -49,12 +49,14 @@ interface Route {
   returnSpeed: number;
   flySpeed: number;
   status: string;
+  type?: string;
 }
 
 const initialRoutes: Route[] = [
   {
     id: "RT-001", name: "朝阳路巡查航线", status: "active",
     takeoffAlt: 30, landingAlt: 20, direction: 45, returnSpeed: 12, flySpeed: 8,
+    type: "单次",
     waypoints: [
       { id: 1, lat: 30.5920, lng: 114.3050, altitude: 120, speed: 8, hoverTime: 10, action: "拍照", gimbalPitch: -45, yawMode: "自动", x: 20, y: 30 },
       { id: 2, lat: 30.5940, lng: 114.3080, altitude: 100, speed: 10, hoverTime: 5, action: "录像", gimbalPitch: -30, yawMode: "手动", x: 40, y: 25 },
@@ -66,6 +68,7 @@ const initialRoutes: Route[] = [
   {
     id: "RT-002", name: "南环快速路航线", status: "active",
     takeoffAlt: 25, landingAlt: 15, direction: 90, returnSpeed: 15, flySpeed: 12,
+    type: "循环", 
     waypoints: [
       { id: 1, lat: 30.5800, lng: 114.2900, altitude: 80, speed: 12, hoverTime: 5, action: "录像", gimbalPitch: -30, yawMode: "航向锁定", x: 15, y: 70 },
       { id: 2, lat: 30.5800, lng: 114.3100, altitude: 80, speed: 12, hoverTime: 5, action: "录像", gimbalPitch: -30, yawMode: "航向锁定", x: 65, y: 70 },
@@ -371,37 +374,61 @@ export function RoutePlanning() {
       </div>
 
       {/* Right Panel - Settings */}
-      <div
-        className="flex-shrink-0 flex flex-col overflow-y-auto"
-        style={{ width: "280px", background: "#0b1120", borderLeft: "1px solid #1e2d4a" }}
-      >
-        {/* Route Settings */}
-        <div className="p-4" style={{ borderBottom: "1px solid #1e2d4a" }}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 style={{ color: "#00b4ff", fontSize: "13px", fontWeight: 700 }}>{selectedRoute.name}</h3>
-            <button style={{ color: "#4a6080" }}><Edit3 size={13} /></button>
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { label: "起飞高度(m)", field: "takeoffAlt", value: selectedRoute.takeoffAlt },
+          { label: "降落高度(m)", field: "landingAlt", value: selectedRoute.landingAlt },
+          { label: "航线方向(°)", field: "direction", value: selectedRoute.direction },
+          { label: "飞行速度(m/s)", field: "flySpeed", value: selectedRoute.flySpeed },
+          { label: "返航速度(m/s)", field: "returnSpeed", value: selectedRoute.returnSpeed },
+        ].map(({ label, field, value }) => (
+          <div key={field} className={field === "direction" ? "col-span-2" : ""}>
+            <label style={{ color: "#6b8299", fontSize: "10px", display: "block", marginBottom: "4px" }}>{label}</label>
+            <input
+              type="number"
+              value={value}
+              onChange={(e) => updateRouteParam(field as keyof Route, Number(e.target.value))}
+              className="w-full px-3 py-2 rounded-lg outline-none"
+              style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "12px" }}
+            />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: "起飞高度(m)", field: "takeoffAlt", value: selectedRoute.takeoffAlt },
-              { label: "降落高度(m)", field: "landingAlt", value: selectedRoute.landingAlt },
-              { label: "航线方向(°)", field: "direction", value: selectedRoute.direction },
-              { label: "飞行速度(m/s)", field: "flySpeed", value: selectedRoute.flySpeed },
-              { label: "返航速度(m/s)", field: "returnSpeed", value: selectedRoute.returnSpeed },
-            ].map(({ label, field, value }) => (
-              <div key={field} className={field === "direction" ? "col-span-2" : ""}>
-                <label style={{ color: "#6b8299", fontSize: "10px", display: "block", marginBottom: "4px" }}>{label}</label>
-                <input
-                  type="number"
-                  value={value}
-                  onChange={(e) => updateRouteParam(field as keyof Route, Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-lg outline-none"
-                  style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "12px" }}
-                />
-              </div>
-            ))}
+        ))}
+        
+        {/* 航线类型 */}
+        <div className="col-span-2">
+          <label style={{ color: "#6b8299", fontSize: "10px", display: "block", marginBottom: "4px" }}>航线类型</label>
+          <div className="flex gap-2">
+            <button
+              onClick={() => updateRouteParam("type", "单次")}
+              style={{
+                flex: 1,
+                background: selectedRoute.type === "单次" ? "rgba(0,180,255,0.3)" : "#060c1a",
+                border: `1px solid ${selectedRoute.type === "单次" ? "#00b4ff" : "#1e2d4a"}`,
+                color: selectedRoute.type === "单次" ? "#00b4ff" : "#6b8299",
+                padding: "6px 0",
+                borderRadius: "6px",
+                fontSize: "11px",
+              }}
+            >
+              单次
+            </button>
+            <button
+              onClick={() => updateRouteParam("type", "循环")}
+              style={{
+                flex: 1,
+                background: selectedRoute.type === "循环" ? "rgba(0,180,255,0.3)" : "#060c1a",
+                border: `1px solid ${selectedRoute.type === "循环" ? "#00b4ff" : "#1e2d4a"}`,
+                color: selectedRoute.type === "循环" ? "#00b4ff" : "#6b8299",
+                padding: "6px 0",
+                borderRadius: "6px",
+                fontSize: "11px",
+              }}
+            >
+              循环
+            </button>
           </div>
         </div>
+      </div>
 
         {/* Waypoints */}
         <div className="p-4 flex-1">
@@ -538,7 +565,7 @@ export function RoutePlanning() {
           </div>
         </div>
 
-        {/* Save Button */}
+                {/* Save Button */}
         <div className="p-4 flex gap-3" style={{ borderTop: "1px solid #1e2d4a" }}>
           <button
             className="flex-1 py-2.5 rounded-lg flex items-center justify-center gap-2"
@@ -554,6 +581,5 @@ export function RoutePlanning() {
           </button>
         </div>
       </div>
-    </div>
-  );
+        );
 }
