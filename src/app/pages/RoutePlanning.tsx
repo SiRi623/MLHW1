@@ -50,6 +50,7 @@ interface Route {
   flySpeed: number;
   status: string;
   type?: string;
+  description?: string; 
 }
 
 const initialRoutes: Route[] = [
@@ -57,6 +58,7 @@ const initialRoutes: Route[] = [
     id: "RT-001", name: "朝阳路巡查航线", status: "active",
     takeoffAlt: 30, landingAlt: 20, direction: 45, returnSpeed: 12, flySpeed: 8,
     type: "单次",
+    description: "朝阳路重点区域日常巡查，覆盖主要路口和商业区",
     waypoints: [
       { id: 1, lat: 30.5920, lng: 114.3050, altitude: 120, speed: 8, hoverTime: 10, action: "拍照", gimbalPitch: -45, yawMode: "自动", x: 20, y: 30 },
       { id: 2, lat: 30.5940, lng: 114.3080, altitude: 100, speed: 10, hoverTime: 5, action: "录像", gimbalPitch: -30, yawMode: "手动", x: 40, y: 25 },
@@ -69,6 +71,7 @@ const initialRoutes: Route[] = [
     id: "RT-002", name: "南环快速路航线", status: "active",
     takeoffAlt: 25, landingAlt: 15, direction: 90, returnSpeed: 15, flySpeed: 12,
     type: "循环",
+    description: "南环快速路交通监控，循环巡检",
     waypoints: [
       { id: 1, lat: 30.5800, lng: 114.2900, altitude: 80, speed: 12, hoverTime: 5, action: "录像", gimbalPitch: -30, yawMode: "航向锁定", x: 15, y: 70 },
       { id: 2, lat: 30.5800, lng: 114.3100, altitude: 80, speed: 12, hoverTime: 5, action: "录像", gimbalPitch: -30, yawMode: "航向锁定", x: 65, y: 70 },
@@ -137,6 +140,7 @@ export function RoutePlanning() {
       status: "draft",
       takeoffAlt: 30, landingAlt: 20, direction: 0, returnSpeed: 12, flySpeed: 8,
       type: "单次",
+      description: "",
       waypoints: [
         { id: 1, lat: 30.5928, lng: 114.3055, altitude: 100, speed: 8, hoverTime: 10, action: "拍照", gimbalPitch: -45, yawMode: "自动", x: 50, y: 50 },
       ],
@@ -515,6 +519,19 @@ export function RoutePlanning() {
               </button>
             </div>
           </div>
+
+          {/* 航线描述 */}
+              <div className="mt-4">
+                <label style={{ color: "#6b8299", fontSize: "10px", display: "block", marginBottom: "4px" }}>航线描述</label>
+                <textarea
+                  value={selectedRoute.description || ""}
+                  onChange={(e) => updateRouteParam("description", e.target.value)}
+                  placeholder="输入航线说明信息..."
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg outline-none resize-none"
+                  style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "12px" }}
+                />
+              </div>
         </div>
 
         {/* Waypoints */}
