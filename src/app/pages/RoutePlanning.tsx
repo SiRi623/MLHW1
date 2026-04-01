@@ -469,6 +469,29 @@ export function RoutePlanning() {
                 {/* Expanded Settings */}
                 {expandedWp === wp.id && (
                   <div className="px-3 pb-3 grid grid-cols-2 gap-2">
+                     {/* 经纬度 - 插入到这里 */}
+                    <div>
+                      <label style={{ color: "#4a6080", fontSize: "9px", display: "block", marginBottom: "3px" }}>纬度</label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        value={wp.lat}
+                        onChange={(e) => updateWaypoint(wp.id, "lat", parseFloat(e.target.value))}
+                        className="w-full px-2 py-1 rounded outline-none"
+                        style={{ background: "#0b1120", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "11px" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ color: "#4a6080", fontSize: "9px", display: "block", marginBottom: "3px" }}>经度</label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        value={wp.lng}
+                        onChange={(e) => updateWaypoint(wp.id, "lng", parseFloat(e.target.value))}
+                        className="w-full px-2 py-1 rounded outline-none"
+                        style={{ background: "#0b1120", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "11px" }}
+                      />
+                    </div>
                     {[
                       { label: "高度(m)", field: "altitude", value: wp.altitude },
                       { label: "速度(m/s)", field: "speed", value: wp.speed },
