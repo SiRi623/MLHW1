@@ -19,12 +19,10 @@
   - 下载视频
   - 删除视频
 - 作业态势监控
-  - 提供无人机/基站作业过程全态势监控能力
-  - 包括对无人机作业进行实时监控
+  - 对无人机作业进行实时监控
   - 实时获取无人机直播画面、位置、朝向、任务完成进度、电池、飞行状态等信息
 - 计划作业
-  - 提供无人机/基站定时调度作业功能
-  - 包括支持无人机计划调度作业
+  - 支持无人机计划调度作业
   - 可预先规划任意时间点周期或非周期巡查任务
   - 无人机到点根据天气条件、设备状态情况自动作业
 - 航线设定
@@ -44,10 +42,6 @@
 - 系统设置
   - 用户角色管理
   - 运维管理
-
-## 参考资料
-- https://www.dji.com/cn
-- https://aiskyeye.com/
 
 ## 说明
 This is a code bundle for 无人机智能分析系统原型. The original project is available at https://www.figma.com/design/mPVCeFKREqgLPdkYYKtpLo/%E6%97%A0%E4%BA%BA%E6%9C%BA%E6%99%BA%E8%83%BD%E5%88%86%E6%9E%90%E7%B3%BB%E7%BB%9F%E5%8E%9F%E5%9E%8B.
