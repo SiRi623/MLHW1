@@ -56,7 +56,24 @@ const tasks: {
   { id: "PT006", name: "早高峰全域扫描", drone: "UAV-007", station: "BS-03", startTime: "08:00", endTime: "09:30", date: "2026-03-29", repeat: "工作日", status: "completed", weather: "sunny", progress: 100, route: "RT-001" },
   { id: "PT007", name: "晚间事故巡查", drone: "UAV-001", station: "BS-01", startTime: "20:00", endTime: "21:00", date: "2026-03-29", repeat: "非周期", status: "failed", weather: "rainy", progress: 42, route: "RT-002" },
 ];
+// 任务执行日志
+interface ExecutionLog {
+  id: number;
+  taskId: string;
+  startTime: string;
+  endTime: string;
+  result: "成功" | "失败" | "部分成功";
+  reason?: string;
+}
 
+const initialExecutionLogs: ExecutionLog[] = [
+  { id: 1, taskId: "PT001", startTime: "2026-03-30 07:30:00", endTime: "2026-03-30 08:45:00", result: "成功" },
+  { id: 2, taskId: "PT001", startTime: "2026-03-29 07:30:00", endTime: "2026-03-29 08:50:00", result: "成功" },
+  { id: 3, taskId: "PT002", startTime: "2026-03-30 10:00:00", endTime: "2026-03-30 11:25:00", result: "成功" },
+  { id: 4, taskId: "PT002", startTime: "2026-03-29 10:00:00", endTime: "2026-03-29 11:15:00", result: "失败", reason: "天气原因" },
+  { id: 5, taskId: "PT003", startTime: "2026-03-30 14:00:00", endTime: "2026-03-30 15:30:00", result: "成功" },
+  { id: 6, taskId: "PT007", startTime: "2026-03-29 20:00:00", endTime: "2026-03-29 20:45:00", result: "部分成功", reason: "中途信号中断" },
+];
 const statusConfig: Record<TaskStatus, { label: string; color: string; bg: string }> = {
   running: { label: "执行中", color: "#22c55e", bg: "rgba(34,197,94,0.1)" },
   scheduled: { label: "待执行", color: "#00b4ff", bg: "rgba(0,180,255,0.1)" },
@@ -91,6 +108,10 @@ export function PlannedOperations() {
   });
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedTask, setSelectedTask] = useState<typeof tasks[0] | null>(null);
+  const [editingTask, setEditingTask] = useState<typeof tasks[0] | null>(null);
+  const [executionLogs, setExecutionLogs] = useState(initialExecutionLogs);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [isBatchMode, setIsBatchMode] = useState(false);
 
   const filtered = taskList.filter(
     (t) =>
@@ -99,18 +120,30 @@ export function PlannedOperations() {
       t.name.includes(searchKeyword)
   );
 
-  const handleCreate = () => {
-    const task = {
-      ...newTask,
-      id: `PT${String(taskList.length + 1).padStart(3, "0")}`,
-      status: "scheduled" as TaskStatus,
-      weather: "sunny" as "sunny",
-      progress: 0,
-    };
-    setTaskList((p) => [...p, task]);
-    setShowCreate(false);
-    setNewTask({ name: "", drone: "UAV-001", station: "BS-01", startTime: "09:00", endTime: "10:30", date: "2026-03-31", repeat: "非周期", route: "RT-001" });
+const handleCreate = () => {
+  const task = {
+    ...newTask,
+    id: `PT${String(taskList.length + 1).padStart(3, "0")}`,
+    status: "scheduled" as TaskStatus,
+    weather: "sunny" as "sunny",
+    progress: 0,
   };
+  setTaskList((p) => [...p, task]);
+  
+  // 添加创建日志（需要把 executionLogs 改成 useState）
+  const newLog: ExecutionLog = {
+    id: executionLogs.length + 1,
+    taskId: task.id,
+    startTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    endTime: "",
+    result: "部分成功",
+    reason: "任务已创建，等待执行",
+  };
+  setExecutionLogs((prev) => [...prev, newLog]);
+  
+  setShowCreate(false);
+  setNewTask({ name: "", drone: "UAV-001", station: "BS-01", startTime: "09:00", endTime: "10:30", date: "2026-03-31", repeat: "非周期", route: "RT-001" });
+};
 
   const toggleTask = (id: string) => {
     setTaskList((p) =>
@@ -220,6 +253,59 @@ export function PlannedOperations() {
               <X size={12} />
             </button>
           )}
+          {/* 批量操作按钮 */}
+            <button
+              onClick={() => {
+                setIsBatchMode(!isBatchMode);
+                setSelectedTaskIds([]);
+              }}
+              className="px-3 py-2 rounded-lg flex items-center gap-2"
+              style={{
+                background: isBatchMode ? "rgba(0,180,255,0.2)" : "#060c1a",
+                border: `1px solid ${isBatchMode ? "#00b4ff" : "#1e2d4a"}`,
+                color: isBatchMode ? "#00b4ff" : "#6b8299",
+                fontSize: "12px"
+              }}
+            >
+              <CheckCircle size={14} /> 批量操作
+            </button>
+
+            {isBatchMode && (
+              <>
+                <button
+                  onClick={() => {
+                    if (selectedTaskIds.length === 0) return;
+                    if (confirm(`确定删除 ${selectedTaskIds.length} 个任务吗？`)) {
+                      setTaskList((prev) => prev.filter((t) => !selectedTaskIds.includes(t.id)));
+                      setSelectedTaskIds([]);
+                      setIsBatchMode(false);
+                    }
+                  }}
+                  className="px-3 py-2 rounded-lg flex items-center gap-2"
+                  style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444", fontSize: "12px" }}
+                >
+                  <Trash2 size={14} /> 删除选中 ({selectedTaskIds.length})
+                </button>
+                <button
+                  onClick={() => {
+                    if (selectedTaskIds.length === 0) return;
+                    setTaskList((prev) =>
+                      prev.map((t) =>
+                        selectedTaskIds.includes(t.id) && (t.status === "scheduled" || t.status === "paused" || t.status === "running")
+                          ? { ...t, status: t.status === "running" ? "paused" : "running" }
+                          : t
+                      )
+                    );
+                    setSelectedTaskIds([]);
+                    setIsBatchMode(false);
+                  }}
+                  className="px-3 py-2 rounded-lg flex items-center gap-2"
+                  style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", color: "#22c55e", fontSize: "12px" }}
+                >
+                  <Play size={14} /> 批量执行/暂停 ({selectedTaskIds.length})
+                </button>
+              </>
+            )}
           <button
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg"
@@ -318,6 +404,22 @@ export function PlannedOperations() {
                 onClick={() => setSelectedTask(task)}
               >
                 <div className="flex items-start justify-between">
+                  {isBatchMode && (
+                    <input
+                      type="checkbox"
+                      checked={selectedTaskIds.includes(task.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedTaskIds((prev) => [...prev, task.id]);
+                        } else {
+                          setSelectedTaskIds((prev) => prev.filter((id) => id !== task.id));
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-4 h-4 mt-3 mr-2 rounded"
+                      style={{ accentColor: "#00b4ff" }}
+                    />
+                  )}
                   <div className="flex items-start gap-3">
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -517,7 +619,7 @@ export function PlannedOperations() {
           </div>
         </div>
       )}
-            {/* 任务详情弹窗 */}
+      {/* 任务详情弹窗 */}
       {selectedTask && (
         <div
           className="fixed inset-0 flex items-center justify-center z-50"
@@ -636,7 +738,53 @@ export function PlannedOperations() {
                 </div>
               </div>
             </div>
-
+                          {/* 执行日志 */}
+              <div
+                className="mt-2 rounded-lg overflow-hidden"
+                style={{ background: "#060c1a", border: "1px solid #1e2d4a" }}
+              >
+                <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #1e2d4a" }}>
+                  <Clock size={12} color="#00b4ff" />
+                  <span style={{ color: "#00b4ff", fontSize: "11px", fontWeight: 500 }}>执行日志</span>
+                </div>
+                <div className="p-2 max-h-32 overflow-y-auto">
+                  {(() => {
+                    const logs = executionLogs.filter(log => log.taskId === selectedTask.id);
+                    if (logs.length === 0) {
+                      return (
+                        <div className="text-center py-3" style={{ color: "#4a6080", fontSize: "11px" }}>
+                          暂无执行记录
+                        </div>
+                      );
+                    }
+                    return logs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="flex items-center justify-between px-2 py-1.5 border-b last:border-0"
+                        style={{ borderColor: "#1e2d4a" }}
+                      >
+                        <div className="flex-1">
+                          <div style={{ color: "#94a3b8", fontSize: "10px" }}>
+                            {log.startTime} — {log.endTime}
+                          </div>
+                          {log.reason && (
+                            <div style={{ color: "#4a6080", fontSize: "9px" }}>{log.reason}</div>
+                          )}
+                        </div>
+                        <span
+                          className="px-2 py-0.5 rounded-full text-[10px]"
+                          style={{
+                            background: log.result === "成功" ? "rgba(34,197,94,0.15)" : log.result === "失败" ? "rgba(239,68,68,0.15)" : "rgba(245,158,11,0.15)",
+                            color: log.result === "成功" ? "#22c55e" : log.result === "失败" ? "#ef4444" : "#f59e0b",
+                          }}
+                        >
+                          {log.result}
+                        </span>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
             {/* 底部按钮 */}
             <div className="flex gap-3 px-6 py-4" style={{ borderTop: "1px solid #1e2d4a" }}>
               <button
@@ -645,6 +793,19 @@ export function PlannedOperations() {
                 style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#94a3b8", fontSize: "13px" }}
               >
                 关闭
+              </button>
+              <button
+                onClick={() => {
+                 const taskToEdit = selectedTask;
+                  setSelectedTask(null);
+                  setTimeout(() => {
+                    setEditingTask(taskToEdit);
+                  }, 200);
+                }}
+                className="flex-1 py-2 rounded-lg"
+                style={{ background: "#0b1120", border: "1px solid #00b4ff", color: "#00b4ff", fontSize: "13px" }}
+              >
+                编辑
               </button>
               {selectedTask.status === "scheduled" && (
                 <button
@@ -659,6 +820,154 @@ export function PlannedOperations() {
                 </button>
               )}
             </div>
+                  {/* 编辑任务弹窗 */}
+          {editingTask && (
+            <div
+              className="fixed inset-0 flex items-center justify-center z-50"
+              style={{ background: "rgba(0,0,0,0.7)" }}
+              onClick={() => setEditingTask(null)}
+            >
+              <div
+                className="rounded-2xl overflow-hidden"
+                style={{ width: "520px", background: "#0b1120", border: "1px solid #1e2d4a" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid #1e2d4a", background: "#060c1a" }}>
+                  <h3 style={{ color: "#e2e8f0", fontSize: "16px", fontWeight: 700 }}>编辑任务</h3>
+                  <button onClick={() => setEditingTask(null)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#0b1120", border: "1px solid #1e2d4a", color: "#4a6080" }}>
+                    <X size={14} />
+                  </button>
+                </div>
+
+                <div className="p-6 grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "6px" }}>任务名称</label>
+                    <input
+                      type="text"
+                      value={editingTask.name}
+                      onChange={(e) => setEditingTask({ ...editingTask, name: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg outline-none"
+                      style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "13px" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "6px" }}>无人机</label>
+                    <select
+                      value={editingTask.drone}
+                      onChange={(e) => setEditingTask({ ...editingTask, drone: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg outline-none"
+                      style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "13px" }}
+                    >
+                      <option value="UAV-001">UAV-001</option>
+                      <option value="UAV-002">UAV-002</option>
+                      <option value="UAV-003">UAV-003</option>
+                      <option value="UAV-004">UAV-004</option>
+                      <option value="UAV-006">UAV-006</option>
+                      <option value="UAV-007">UAV-007</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "6px" }}>地面站</label>
+                    <select
+                      value={editingTask.station}
+                      onChange={(e) => setEditingTask({ ...editingTask, station: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg outline-none"
+                      style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "13px" }}
+                    >
+                      <option value="BS-01">BS-01</option>
+                      <option value="BS-02">BS-02</option>
+                      <option value="BS-03">BS-03</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "6px" }}>执行航线</label>
+                    <select
+                      value={editingTask.route}
+                      onChange={(e) => setEditingTask({ ...editingTask, route: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg outline-none"
+                      style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "13px" }}
+                    >
+                      <option value="RT-001">RT-001</option>
+                      <option value="RT-002">RT-002</option>
+                      <option value="RT-003">RT-003</option>
+                      <option value="RT-004">RT-004</option>
+                      <option value="RT-005">RT-005</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "6px" }}>执行日期</label>
+                    <input
+                      type="date"
+                      value={editingTask.date}
+                      onChange={(e) => setEditingTask({ ...editingTask, date: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg outline-none"
+                      style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "13px" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "6px" }}>重复周期</label>
+                    <select
+                      value={editingTask.repeat}
+                      onChange={(e) => setEditingTask({ ...editingTask, repeat: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg outline-none"
+                      style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "13px" }}
+                    >
+                      <option value="非周期">非周期</option>
+                      <option value="每日">每日</option>
+                      <option value="工作日">工作日</option>
+                      <option value="每周">每周</option>
+                      <option value="每月">每月</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "6px" }}>开始时间</label>
+                    <input
+                      type="time"
+                      value={editingTask.startTime}
+                      onChange={(e) => setEditingTask({ ...editingTask, startTime: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg outline-none"
+                      style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "13px" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "6px" }}>结束时间</label>
+                    <input
+                      type="time"
+                      value={editingTask.endTime}
+                      onChange={(e) => setEditingTask({ ...editingTask, endTime: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg outline-none"
+                      style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "13px" }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 px-6 py-4" style={{ borderTop: "1px solid #1e2d4a" }}>
+                  <button
+                    onClick={() => setEditingTask(null)}
+                    className="flex-1 py-2 rounded-lg"
+                    style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#94a3b8", fontSize: "13px" }}
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={() => {
+                      // 更新任务列表
+                      setTaskList((prev) =>
+                        prev.map((t) => (t.id === editingTask.id ? { ...editingTask } : t))
+                      );
+                      setEditingTask(null);
+                      // 显示成功提示
+                      alert(`任务 "${editingTask.name}" 已更新`);
+                    }}
+                    className="flex-1 py-2 rounded-lg"
+                    style={{ background: "linear-gradient(135deg, #0055cc, #00b4ff)", color: "#fff", fontSize: "13px" }}
+                  >
+                    <Save size={13} className="inline mr-1" /> 保存修改
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           </div>
         </div>
       )}
