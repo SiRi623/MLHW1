@@ -125,6 +125,69 @@ export function AIModelLibrary() {
   const [selectedDrones, setSelectedDrones] = useState<string[]>([]);
   const [deployingModel, setDeployingModel] = useState<Model | null>(null);
   const [modelList, setModelList] = useState(models);
+  const [showImport, setShowImport] = useState(false);
+  const [importForm, setImportForm] = useState({
+    name: "", type: "目标检测", version: "v1.0.0",
+    description: "", size: "", fps: "", accuracy: "",
+    tags: "", fileName: "",
+  });
+  const [importing, setImporting] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
+  };
+
+  const handleExport = (model: Model) => {
+    const exportData = {
+      id: model.id, name: model.name, type: model.type, version: model.version,
+      accuracy: model.accuracy, precision: model.precision, recall: model.recall,
+      fps: model.fps, size: model.size, inferenceTime: model.inferenceTime,
+      status: model.status, deployedTo: model.deployedTo,
+      tags: model.tags, classes: model.classes,
+      description: model.description, updatedAt: model.updatedAt,
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${model.name}_${model.version}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast(`模型 ${model.name} 已导出`);
+  };
+
+  const handleImport = async () => {
+    if (!importForm.name || !importForm.version) return;
+    setImporting(true);
+    await new Promise((r) => setTimeout(r, 1800));
+    const newModel: Model = {
+      id: `M00${modelList.length + 1}`,
+      name: importForm.name,
+      type: importForm.type,
+      version: importForm.version,
+      accuracy: parseFloat(importForm.accuracy) || 85.0,
+      fps: parseInt(importForm.fps) || 30,
+      size: importForm.size || "128 MB",
+      status: "idle",
+      deployedTo: [],
+      tags: importForm.tags ? importForm.tags.split("，").map(t => t.trim()).filter(Boolean) : ["自定义"],
+      updatedAt: new Date().toISOString().slice(0, 10),
+      description: importForm.description || "用户导入的自定义模型。",
+      precision: parseFloat(importForm.accuracy) ? parseFloat(importForm.accuracy) - 1.2 : 83.8,
+      recall: parseFloat(importForm.accuracy) ? parseFloat(importForm.accuracy) - 0.8 : 84.2,
+      classes: ["目标类别A", "目标类别B"],
+      inferenceTime: Math.round(1000 / (parseInt(importForm.fps) || 30)),
+    };
+    setModelList((p) => [...p, newModel]);
+    setSelected(newModel);
+    setImporting(false);
+    setShowImport(false);
+    setImportForm({ name: "", type: "目标检测", version: "v1.0.0", description: "", size: "", fps: "", accuracy: "", tags: "", fileName: "" });
+    showToast(`模型 ${newModel.name} 导入成功`);
+  };
 
   const filteredModels = modelList.filter((m) => {
     const matchSearch = !search || m.name.toLowerCase().includes(search.toLowerCase()) || m.tags.some((t) => t.includes(search));
@@ -244,7 +307,8 @@ export function AIModelLibrary() {
         </div>
         <div className="p-3" style={{ borderTop: "1px solid #1e2d4a" }}>
           <button
-            className="w-full py-2.5 rounded-lg flex items-center justify-center gap-2"
+            onClick={() => setShowImport(true)}
+            className="w-full py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95"
             style={{ background: "rgba(0,100,200,0.15)", border: "1px solid rgba(0,180,255,0.3)", color: "#00b4ff", fontSize: "12px" }}
           >
             <Plus size={13} /> 导入新模型
@@ -287,12 +351,16 @@ export function AIModelLibrary() {
               </div>
             </div>
             <div className="flex gap-2">
-              <button className="flex items-center gap-2 px-4 py-2 rounded-lg" style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#6b8299", fontSize: "12px" }}>
+              <button
+                onClick={() => handleExport(selected)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all hover:border-[#00b4ff]/40 active:scale-95"
+                style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#94a3b8", fontSize: "12px" }}
+              >
                 <Download size={13} /> 导出
               </button>
               <button
                 onClick={() => { setDeployingModel(selected); setSelectedDrones(selected.deployedTo); setShowDeploy(true); }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all hover:opacity-90 active:scale-95"
                 style={{ background: "linear-gradient(135deg, #0055cc, #00b4ff)", color: "#fff", fontSize: "12px" }}
               >
                 <Upload size={13} /> 部署模型
@@ -500,6 +568,199 @@ export function AIModelLibrary() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {showImport && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: "rgba(4,8,16,0.88)" }}
+          onClick={() => !importing && setShowImport(false)}
+        >
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{ width: "500px", background: "#0b1120", border: "1px solid #1e2d4a" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid #1e2d4a" }}>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #0044aa, #00b4ff)" }}>
+                  <Brain size={16} color="#fff" />
+                </div>
+                <div>
+                  <h3 style={{ color: "#e2e8f0", fontSize: "15px", fontWeight: 700 }}>导入新模型</h3>
+                  <p style={{ color: "#4a6080", fontSize: "11px" }}>填写模型基本信息后导入至模型库</p>
+                </div>
+              </div>
+              {!importing && (
+                <button onClick={() => setShowImport(false)} style={{ color: "#4a6080" }}><X size={18} /></button>
+              )}
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* File selector (simulated) */}
+              <div
+                className="flex flex-col items-center justify-center py-5 rounded-xl cursor-pointer transition-all"
+                style={{ background: "#060c1a", border: "2px dashed #1e2d4a" }}
+                onClick={() => {
+                  const fake = ["model_yolov8.pt", "custom_detector.onnx", "classifier_v2.tflite"];
+                  setImportForm((p) => ({ ...p, fileName: fake[Math.floor(Math.random() * fake.length)] }));
+                }}
+              >
+                {importForm.fileName ? (
+                  <div className="flex items-center gap-2">
+                    <HardDrive size={16} color="#00b4ff" />
+                    <span style={{ color: "#00b4ff", fontSize: "13px" }}>{importForm.fileName}</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setImportForm((p) => ({ ...p, fileName: "" })); }}
+                      style={{ color: "#4a6080" }}
+                    ><X size={13} /></button>
+                  </div>
+                ) : (
+                  <>
+                    <Upload size={20} color="#4a6080" />
+                    <p style={{ color: "#6b8299", fontSize: "12px", marginTop: "6px" }}>点击选择模型文件</p>
+                    <p style={{ color: "#2a3a50", fontSize: "10px" }}>支持 .pt / .onnx / .tflite 格式</p>
+                  </>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "5px" }}>模型名称 *</label>
+                  <input
+                    value={importForm.name}
+                    onChange={(e) => setImportForm((p) => ({ ...p, name: e.target.value }))}
+                    placeholder="如：MyDetector-v1"
+                    className="w-full px-3 py-2 rounded-lg outline-none"
+                    style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "12px" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "5px" }}>版本号 *</label>
+                  <input
+                    value={importForm.version}
+                    onChange={(e) => setImportForm((p) => ({ ...p, version: e.target.value }))}
+                    placeholder="如：v1.0.0"
+                    className="w-full px-3 py-2 rounded-lg outline-none"
+                    style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "12px" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "5px" }}>模型类型</label>
+                  <select
+                    value={importForm.type}
+                    onChange={(e) => setImportForm((p) => ({ ...p, type: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg outline-none"
+                    style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "12px" }}
+                  >
+                    {["目标检测", "行为识别", "事故检测", "场景分析", "密度估算", "文字识别", "分类识别"].map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "5px" }}>准确率 (%)</label>
+                  <input
+                    value={importForm.accuracy}
+                    onChange={(e) => setImportForm((p) => ({ ...p, accuracy: e.target.value }))}
+                    placeholder="如：92.5"
+                    type="number" min="0" max="100" step="0.1"
+                    className="w-full px-3 py-2 rounded-lg outline-none"
+                    style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "12px" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "5px" }}>推理帧率 (FPS)</label>
+                  <input
+                    value={importForm.fps}
+                    onChange={(e) => setImportForm((p) => ({ ...p, fps: e.target.value }))}
+                    placeholder="如：30"
+                    type="number" min="1"
+                    className="w-full px-3 py-2 rounded-lg outline-none"
+                    style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "12px" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "5px" }}>模型大小</label>
+                  <input
+                    value={importForm.size}
+                    onChange={(e) => setImportForm((p) => ({ ...p, size: e.target.value }))}
+                    placeholder="如：128 MB"
+                    className="w-full px-3 py-2 rounded-lg outline-none"
+                    style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "12px" }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "5px" }}>标签（用中文顿号「，」分隔）</label>
+                <input
+                  value={importForm.tags}
+                  onChange={(e) => setImportForm((p) => ({ ...p, tags: e.target.value }))}
+                  placeholder="如：车辆检测，实时，自定义"
+                  className="w-full px-3 py-2 rounded-lg outline-none"
+                  style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "12px" }}
+                />
+              </div>
+              <div>
+                <label style={{ color: "#6b8299", fontSize: "11px", display: "block", marginBottom: "5px" }}>模型描述</label>
+                <textarea
+                  value={importForm.description}
+                  onChange={(e) => setImportForm((p) => ({ ...p, description: e.target.value }))}
+                  placeholder="简要描述模型的功能与适用场景..."
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg outline-none resize-none"
+                  style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "12px" }}
+                />
+              </div>
+
+              {importing && (
+                <div className="flex items-center gap-3 px-4 py-3 rounded-lg" style={{ background: "rgba(0,100,200,0.1)", border: "1px solid rgba(0,180,255,0.2)" }}>
+                  <RefreshCw size={14} color="#00b4ff" className="animate-spin" />
+                  <span style={{ color: "#00b4ff", fontSize: "12px" }}>正在导入模型，请稍候...</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 px-6 py-4" style={{ borderTop: "1px solid #1e2d4a" }}>
+              <button
+                onClick={() => setShowImport(false)}
+                disabled={importing}
+                className="px-4 py-2 rounded-lg"
+                style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: importing ? "#2a3a50" : "#6b8299", fontSize: "13px" }}
+              >
+                取消
+              </button>
+              <button
+                onClick={handleImport}
+                disabled={!importForm.name || !importForm.version || importing}
+                className="flex items-center gap-2 px-5 py-2 rounded-lg transition-all"
+                style={{
+                  background: importForm.name && importForm.version && !importing
+                    ? "linear-gradient(135deg, #0055cc, #00b4ff)"
+                    : "#1e2d4a",
+                  color: importForm.name && importForm.version && !importing ? "#fff" : "#4a6080",
+                  fontSize: "13px",
+                  cursor: !importForm.name || !importForm.version || importing ? "not-allowed" : "pointer",
+                }}
+              >
+                <Plus size={13} /> {importing ? "导入中..." : "确认导入"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toastMsg && (
+        <div
+          className="fixed bottom-6 right-6 flex items-center gap-3 px-4 py-3 rounded-xl z-[100]"
+          style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", backdropFilter: "blur(8px)" }}
+        >
+          <CheckCircle size={15} color="#22c55e" />
+          <span style={{ color: "#e2e8f0", fontSize: "13px" }}>{toastMsg}</span>
         </div>
       )}
     </div>
