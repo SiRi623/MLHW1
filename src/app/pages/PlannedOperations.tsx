@@ -22,6 +22,15 @@ import {
   Save,
   Radio,
 } from "lucide-react";
+// 无人机设备状态数据
+const drones = [
+  { id: "UAV-001", name: "无人机-001", battery: 82, signal: 95, status: "online" },
+  { id: "UAV-002", name: "无人机-002", battery: 65, signal: 88, status: "online" },
+  { id: "UAV-003", name: "无人机-003", battery: 91, signal: 92, status: "online" },
+  { id: "UAV-004", name: "无人机-004", battery: 100, signal: 99, status: "online" },
+  { id: "UAV-006", name: "无人机-006", battery: 74, signal: 85, status: "online" },
+  { id: "UAV-007", name: "无人机-007", battery: 85, signal: 90, status: "online" },
+];
 
 type TaskStatus = "scheduled" | "running" | "completed" | "failed" | "paused";
 
@@ -80,11 +89,14 @@ export function PlannedOperations() {
     repeat: "非周期",
     route: "RT-001",
   });
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [selectedTask, setSelectedTask] = useState<typeof tasks[0] | null>(null);
 
   const filtered = taskList.filter(
     (t) =>
       t.date === selectedDate &&
-      (filterStatus === "all" || t.status === filterStatus)
+      (filterStatus === "all" || t.status === filterStatus) &&
+      t.name.includes(searchKeyword)
   );
 
   const handleCreate = () => {
@@ -116,7 +128,37 @@ export function PlannedOperations() {
 
   // Timeline hours
   const hours = Array.from({ length: 24 }, (_, i) => i);
+  // 检查天气是否适合作业
+  const isWeatherSuitable = (weather: string): boolean => {
+    // 雨天不适合作业
+    if (weather === "rainy") return false;
+    // 多云和晴天适合
+    return true;
+  };
 
+  // 检查无人机设备状态
+  const checkDroneStatus = (droneId: string): { ok: boolean; reason?: string } => {
+    // 模拟设备状态检查
+    const drone = drones.find(d => d.id === droneId);
+    if (!drone) return { ok: false, reason: "无人机不存在" };
+    if (drone.battery < 30) return { ok: false, reason: "电量不足" };
+    if (drone.signal < 50) return { ok: false, reason: "信号弱" };
+    return { ok: true };
+  };
+
+// 自动执行任务检查
+  const canAutoExecute = (task: typeof tasks[0]): { ok: boolean; reason?: string } => {
+    // 检查天气
+    if (!isWeatherSuitable(task.weather)) {
+      return { ok: false, reason: "天气条件不适合作业" };
+    }
+    // 检查设备状态
+    const droneStatus = checkDroneStatus(task.drone);
+    if (!droneStatus.ok) {
+      return droneStatus;
+    }
+    return { ok: true };
+  };
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ background: "#080d1a" }}>
       {/* Header */}
@@ -158,6 +200,26 @@ export function PlannedOperations() {
               <option key={k} value={k}>{v.label}</option>
             ))}
           </select>
+          {/* 搜索框 */}
+          <input
+            type="text"
+            placeholder="搜索任务名称..."
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            className="px-3 py-2 rounded-lg outline-none"
+            style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "12px", width: "150px" }}
+          />
+          
+          {/* 清除按钮 */}
+          {searchKeyword && (
+            <button
+              onClick={() => setSearchKeyword("")}
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#4a6080" }}
+            >
+              <X size={12} />
+            </button>
+          )}
           <button
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg"
@@ -240,93 +302,109 @@ export function PlannedOperations() {
             </div>
           </div>
 
-          {/* Task List */}
-          <div className="space-y-3">
-            {filtered.length === 0 ? (
-              <div className="py-16 text-center" style={{ color: "#4a6080" }}>
-                <Calendar size={40} className="mx-auto mb-3" opacity={0.3} />
-                <p>当日无计划任务</p>
-              </div>
-            ) : (
-              filtered.map((task) => (
-                <div
-                  key={task.id}
-                  className="p-4 rounded-xl"
-                  style={{ background: "#0b1120", border: "1px solid #1e2d4a" }}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ background: statusConfig[task.status].bg, border: `1px solid ${statusConfig[task.status].color}44` }}
-                      >
-                        <Navigation size={16} color={statusConfig[task.status].color} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span style={{ color: "#e2e8f0", fontSize: "14px", fontWeight: 700 }}>{task.name}</span>
-                          <span
-                            className="px-2 py-0.5 rounded-full"
-                            style={{ background: statusConfig[task.status].bg, color: statusConfig[task.status].color, fontSize: "10px" }}
-                          >
-                            {statusConfig[task.status].label}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-4 mt-1 flex-wrap">
-                          <span style={{ color: "#4a6080", fontSize: "11px" }}>🛸 {task.drone}</span>
-                          <span style={{ color: "#4a6080", fontSize: "11px" }}>📡 {task.station}</span>
-                          <span style={{ color: "#4a6080", fontSize: "11px" }}>🛤️ {task.route}</span>
-                          <div className="flex items-center gap-1">
-                            <WeatherIcon w={task.weather} />
-                            <span style={{ color: "#4a6080", fontSize: "11px" }}>{weatherLabel[task.weather]}</span>
-                          </div>
-                          <span style={{ color: "#4a6080", fontSize: "11px" }}>🔁 {task.repeat}</span>
-                        </div>
-                      </div>
+                  {/* Task List */}
+        <div className="space-y-3">
+          {filtered.length === 0 ? (
+            <div className="py-16 text-center" style={{ color: "#4a6080" }}>
+              <Calendar size={40} className="mx-auto mb-3" opacity={0.3} />
+              <p>当日无计划任务</p>
+            </div>
+          ) : (
+            filtered.map((task) => (
+              <div
+                key={task.id}
+                className="p-4 rounded-xl"
+                style={{ background: "#0b1120", border: "1px solid #1e2d4a" }}
+                onClick={() => setSelectedTask(task)}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: statusConfig[task.status].bg, border: `1px solid ${statusConfig[task.status].color}44` }}
+                    >
+                      <Navigation size={16} color={statusConfig[task.status].color} />
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                      <div className="text-right">
-                        <div style={{ color: "#e2e8f0", fontSize: "12px" }}>{task.startTime} — {task.endTime}</div>
-                        <div style={{ color: "#4a6080", fontSize: "10px" }}>{task.date}</div>
-                      </div>
-                      {(task.status === "running" || task.status === "paused" || task.status === "scheduled") && (
-                        <button
-                          onClick={() => toggleTask(task.id)}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center"
-                          style={{ background: task.status === "running" ? "rgba(245,158,11,0.15)" : "rgba(34,197,94,0.15)", border: "1px solid #1e2d4a" }}
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span style={{ color: "#e2e8f0", fontSize: "14px", fontWeight: 700 }}>{task.name}</span>
+                        <span
+                          className="px-2 py-0.5 rounded-full"
+                          style={{ background: statusConfig[task.status].bg, color: statusConfig[task.status].color, fontSize: "10px" }}
                         >
-                          {task.status === "running" ? <Pause size={12} color="#f59e0b" /> : <Play size={12} color="#22c55e" />}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => deleteTask(task.id)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}
-                      >
-                        <Trash2 size={12} color="#ef4444" />
-                      </button>
+                          {statusConfig[task.status].label}
+                        </span>
+                        {/* 自动调度标识 */}
+                        {task.status === "scheduled" && canAutoExecute(task).ok && (
+                          <div className="flex items-center gap-1">
+                            <RotateCcw size={10} color="#00b4ff" />
+                            <span style={{ color: "#00b4ff", fontSize: "9px" }}>自动调度</span>
+                          </div>
+                        )}
+                        {task.status === "scheduled" && !canAutoExecute(task).ok && (
+                          <div className="flex items-center gap-1">
+                            <AlertCircle size={10} color="#f59e0b" />
+                            <span style={{ color: "#f59e0b", fontSize: "9px" }}>
+                              {canAutoExecute(task).reason}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 mt-1 flex-wrap">
+                        <span style={{ color: "#4a6080", fontSize: "11px" }}>🛸 {task.drone}</span>
+                        <span style={{ color: "#4a6080", fontSize: "11px" }}>📡 {task.station}</span>
+                        <span style={{ color: "#4a6080", fontSize: "11px" }}>🛤️ {task.route}</span>
+                        <div className="flex items-center gap-1">
+                          <WeatherIcon w={task.weather} />
+                          <span style={{ color: "#4a6080", fontSize: "11px" }}>{weatherLabel[task.weather]}</span>
+                        </div>
+                        <span style={{ color: "#4a6080", fontSize: "11px" }}>🔁 {task.repeat}</span>
+                      </div>
                     </div>
                   </div>
-                  {/* Progress */}
-                  {(task.status === "running" || task.status === "completed") && (
-                    <div className="mt-3">
-                      <div className="flex justify-between mb-1">
-                        <span style={{ color: "#4a6080", fontSize: "10px" }}>执行进度</span>
-                        <span style={{ color: "#00b4ff", fontSize: "10px" }}>{task.progress}%</span>
-                      </div>
-                      <div className="w-full h-1.5 rounded-full" style={{ background: "#1e2d4a" }}>
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${task.progress}%`, background: "linear-gradient(90deg, #0066ff, #00b4ff)" }}
-                        />
-                      </div>
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                    <div className="text-right">
+                      <div style={{ color: "#e2e8f0", fontSize: "12px" }}>{task.startTime} — {task.endTime}</div>
+                      <div style={{ color: "#4a6080", fontSize: "10px" }}>{task.date}</div>
                     </div>
-                  )}
+                    {(task.status === "running" || task.status === "paused" || task.status === "scheduled") && (
+                      <button
+                        onClick={() => toggleTask(task.id)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center"
+                        style={{ background: task.status === "running" ? "rgba(245,158,11,0.15)" : "rgba(34,197,94,0.15)", border: "1px solid #1e2d4a" }}
+                      >
+                        {task.status === "running" ? <Pause size={12} color="#f59e0b" /> : <Play size={12} color="#22c55e" />}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteTask(task.id)}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}
+                    >
+                      <Trash2 size={12} color="#ef4444" />
+                    </button>
+                  </div>
                 </div>
-              ))
-            )}
-          </div>
+                {/* Progress */}
+                {(task.status === "running" || task.status === "completed") && (
+                  <div className="mt-3">
+                    <div className="flex justify-between mb-1">
+                      <span style={{ color: "#4a6080", fontSize: "10px" }}>执行进度</span>
+                      <span style={{ color: "#00b4ff", fontSize: "10px" }}>{task.progress}%</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full" style={{ background: "#1e2d4a" }}>
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${task.progress}%`, background: "linear-gradient(90deg, #0066ff, #00b4ff)" }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
+      </div>
 
         {/* Weather Sidebar */}
         <div
@@ -435,6 +513,151 @@ export function PlannedOperations() {
               <button onClick={handleCreate} className="flex items-center gap-2 px-4 py-2 rounded-lg" style={{ background: "linear-gradient(135deg, #0055cc, #00b4ff)", color: "#fff", fontSize: "13px" }}>
                 <Save size={13} /> 保存计划
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+            {/* 任务详情弹窗 */}
+      {selectedTask && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: "rgba(0,0,0,0.7)" }}
+          onClick={() => setSelectedTask(null)}
+        >
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{ width: "420px", background: "#0b1120", border: "1px solid #1e2d4a" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 头部 */}
+            <div
+              className="flex items-center justify-between px-6 py-4"
+              style={{ borderBottom: "1px solid #1e2d4a", background: "#060c1a" }}
+            >
+              <div className="flex items-center gap-2">
+                <Navigation size={16} color={statusConfig[selectedTask.status].color} />
+                <h3 style={{ color: "#e2e8f0", fontSize: "16px", fontWeight: 700 }}>{selectedTask.name}</h3>
+              </div>
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: "#0b1120", border: "1px solid #1e2d4a", color: "#4a6080" }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* 内容 */}
+            <div className="p-6 space-y-4">
+              {/* 状态 */}
+              <div className="flex items-center justify-between">
+                <span style={{ color: "#6b8299", fontSize: "12px" }}>执行状态</span>
+                <span
+                  className="px-3 py-1 rounded-full text-sm"
+                  style={{ background: statusConfig[selectedTask.status].bg, color: statusConfig[selectedTask.status].color }}
+                >
+                  {statusConfig[selectedTask.status].label}
+                </span>
+              </div>
+
+              {/* 基本信息 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div style={{ color: "#6b8299", fontSize: "11px" }}>无人机</div>
+                  <div style={{ color: "#e2e8f0", fontSize: "13px", fontWeight: 500 }}>{selectedTask.drone}</div>
+                </div>
+                <div>
+                  <div style={{ color: "#6b8299", fontSize: "11px" }}>地面站</div>
+                  <div style={{ color: "#e2e8f0", fontSize: "13px", fontWeight: 500 }}>{selectedTask.station}</div>
+                </div>
+                <div>
+                  <div style={{ color: "#6b8299", fontSize: "11px" }}>执行航线</div>
+                  <div style={{ color: "#e2e8f0", fontSize: "13px", fontWeight: 500 }}>{selectedTask.route}</div>
+                </div>
+                <div>
+                  <div style={{ color: "#6b8299", fontSize: "11px" }}>重复周期</div>
+                  <div style={{ color: "#e2e8f0", fontSize: "13px", fontWeight: 500 }}>{selectedTask.repeat}</div>
+                </div>
+              </div>
+
+              {/* 时间 */}
+              <div className="flex items-center gap-4 pt-2" style={{ borderTop: "1px solid #1e2d4a" }}>
+                <div>
+                  <div style={{ color: "#6b8299", fontSize: "11px" }}>执行日期</div>
+                  <div style={{ color: "#e2e8f0", fontSize: "13px", fontWeight: 500 }}>{selectedTask.date}</div>
+                </div>
+                <div>
+                  <div style={{ color: "#6b8299", fontSize: "11px" }}>时间段</div>
+                  <div style={{ color: "#e2e8f0", fontSize: "13px", fontWeight: 500 }}>{selectedTask.startTime} — {selectedTask.endTime}</div>
+                </div>
+              </div>
+
+              {/* 天气和进度 */}
+              <div className="flex items-center gap-4">
+                <div>
+                  <div style={{ color: "#6b8299", fontSize: "11px" }}>天气条件</div>
+                  <div className="flex items-center gap-1 mt-1">
+                    <WeatherIcon w={selectedTask.weather} />
+                    <span style={{ color: "#e2e8f0", fontSize: "13px" }}>{weatherLabel[selectedTask.weather]}</span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <div style={{ color: "#6b8299", fontSize: "11px" }}>执行进度</div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="flex-1 h-2 rounded-full" style={{ background: "#1e2d4a" }}>
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${selectedTask.progress}%`, background: "linear-gradient(90deg, #0066ff, #00b4ff)" }}
+                      />
+                    </div>
+                    <span style={{ color: "#00b4ff", fontSize: "12px" }}>{selectedTask.progress}%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 自动调度状态 */}
+              <div
+                className="mt-2 p-3 rounded-lg"
+                style={{ background: "#060c1a", border: "1px solid #1e2d4a" }}
+              >
+                <div className="flex items-center gap-2">
+                  <RotateCcw size={12} color="#00b4ff" />
+                  <span style={{ color: "#00b4ff", fontSize: "11px", fontWeight: 500 }}>自动调度状态</span>
+                </div>
+                <div className="mt-1">
+                  {(() => {
+                    const check = canAutoExecute(selectedTask);
+                    if (check.ok) {
+                      return <span style={{ color: "#22c55e", fontSize: "12px" }}>✅ 条件满足，可自动执行</span>;
+                    } else {
+                      return <span style={{ color: "#f59e0b", fontSize: "12px" }}>⚠️ {check.reason}</span>;
+                    }
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            {/* 底部按钮 */}
+            <div className="flex gap-3 px-6 py-4" style={{ borderTop: "1px solid #1e2d4a" }}>
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="flex-1 py-2 rounded-lg"
+                style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#94a3b8", fontSize: "13px" }}
+              >
+                关闭
+              </button>
+              {selectedTask.status === "scheduled" && (
+                <button
+                  onClick={() => {
+                    toggleTask(selectedTask.id);
+                    setSelectedTask(null);
+                  }}
+                  className="flex-1 py-2 rounded-lg"
+                  style={{ background: "linear-gradient(135deg, #0055cc, #00b4ff)", color: "#fff", fontSize: "13px" }}
+                >
+                  开始执行
+                </button>
+              )}
             </div>
           </div>
         </div>
