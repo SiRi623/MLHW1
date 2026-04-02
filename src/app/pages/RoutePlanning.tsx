@@ -177,6 +177,20 @@ export function RoutePlanning() {
   const cancelExecute = () => {
     setShowConfirm(false);
   };
+      // 经纬度转百分比（用于地图显示）
+  // 纬度范围：30.58 ~ 30.60，经度范围：114.29 ~ 114.34
+  const latToPercent = (lat: number) => {
+  const minLat = 30.58;
+  const maxLat = 30.60;
+  // 反转纬度：纬度越高，百分比越小（越靠上）
+  return ((maxLat - lat) / (maxLat - minLat)) * 100;
+  };
+
+  const lngToPercent = (lng: number) => {
+    const minLng = 114.29;
+    const maxLng = 114.34;
+    return ((lng - minLng) / (maxLng - minLng)) * 100;
+  };
 
   return (
     <div className="flex h-full" style={{ background: "#080d1a" }}>
@@ -307,7 +321,7 @@ export function RoutePlanning() {
           {selectedRoute.waypoints.length > 1 && (
             <>
               <polyline
-                points={selectedRoute.waypoints.map((wp) => `${wp.x}%,${wp.y}%`).join(" ")}
+                points={selectedRoute.waypoints.map((wp) => `${wp.lng}%,${wp.lat}%`).join(" ")}
                 fill="none"
                 stroke="#00b4ff"
                 strokeWidth="2"
@@ -316,10 +330,10 @@ export function RoutePlanning() {
               />
               {/* Return path dashed */}
               <line
-                x1={`${selectedRoute.waypoints[selectedRoute.waypoints.length - 1].x}%`}
-                y1={`${selectedRoute.waypoints[selectedRoute.waypoints.length - 1].y}%`}
-                x2={`${selectedRoute.waypoints[0].x}%`}
-                y2={`${selectedRoute.waypoints[0].y}%`}
+                x1={`${lngToPercent(selectedRoute.waypoints[selectedRoute.waypoints.length - 1].lng)}%`}
+                y1={`${latToPercent(selectedRoute.waypoints[selectedRoute.waypoints.length - 1].lat)}%`}
+                x2={`${lngToPercent(selectedRoute.waypoints[0].lng)}%`}
+                y2={`${latToPercent(selectedRoute.waypoints[0].lat)}%`}
                 stroke="#a855f7"
                 strokeWidth="1.5"
                 strokeDasharray="4,4"
@@ -330,8 +344,8 @@ export function RoutePlanning() {
           {/* Direction arrows */}
           {selectedRoute.waypoints.slice(0, -1).map((wp, i) => {
             const next = selectedRoute.waypoints[i + 1];
-            const mx = (wp.x + next.x) / 2;
-            const my = (wp.y + next.y) / 2;
+            const mx = (lngToPercent(wp.lng) + lngToPercent(next.lng)) / 2;
+            const my = (latToPercent(wp.lat) + latToPercent(next.lat)) / 2;
             return (
               <circle key={i} cx={`${mx}%`} cy={`${my}%`} r="3" fill="#00b4ff" opacity="0.5" />
             );
@@ -343,7 +357,7 @@ export function RoutePlanning() {
           <div
             key={wp.id}
             className="absolute cursor-pointer"
-            style={{ left: `${wp.x}%`, top: `${wp.y}%`, transform: "translate(-50%, -50%)", zIndex: 10 }}
+            style={{ left: `${lngToPercent(wp.lng)}%`, top: `${latToPercent(wp.lat)}%`, transform: "translate(-50%, -50%)", zIndex: 10 }}
             onClick={() => setSelectedWaypoint(selectedWaypoint?.id === wp.id ? null : wp)}
           >
             <div className="relative flex items-center justify-center">
