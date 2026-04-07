@@ -49,12 +49,16 @@ interface Route {
   returnSpeed: number;
   flySpeed: number;
   status: string;
+  type?: string;
+  description?: string; 
 }
 
 const initialRoutes: Route[] = [
   {
     id: "RT-001", name: "朝阳路巡查航线", status: "active",
     takeoffAlt: 30, landingAlt: 20, direction: 45, returnSpeed: 12, flySpeed: 8,
+    type: "单次",
+    description: "朝阳路重点区域日常巡查，覆盖主要路口和商业区",
     waypoints: [
       { id: 1, lat: 30.5920, lng: 114.3050, altitude: 120, speed: 8, hoverTime: 10, action: "拍照", gimbalPitch: -45, yawMode: "自动", x: 20, y: 30 },
       { id: 2, lat: 30.5940, lng: 114.3080, altitude: 100, speed: 10, hoverTime: 5, action: "录像", gimbalPitch: -30, yawMode: "手动", x: 40, y: 25 },
@@ -66,6 +70,8 @@ const initialRoutes: Route[] = [
   {
     id: "RT-002", name: "南环快速路航线", status: "active",
     takeoffAlt: 25, landingAlt: 15, direction: 90, returnSpeed: 15, flySpeed: 12,
+    type: "循环",
+    description: "南环快速路交通监控，循环巡检",
     waypoints: [
       { id: 1, lat: 30.5800, lng: 114.2900, altitude: 80, speed: 12, hoverTime: 5, action: "录像", gimbalPitch: -30, yawMode: "航向锁定", x: 15, y: 70 },
       { id: 2, lat: 30.5800, lng: 114.3100, altitude: 80, speed: 12, hoverTime: 5, action: "录像", gimbalPitch: -30, yawMode: "航向锁定", x: 65, y: 70 },
@@ -86,6 +92,8 @@ export function RoutePlanning() {
   const [newRouteName, setNewRouteName] = useState("");
   const [previewMode, setPreviewMode] = useState(false);
   const [expandedWp, setExpandedWp] = useState<number | null>(1);
+  const [showToast, setShowToast] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const updateWaypoint = (id: number, field: keyof Waypoint, value: number | string) => {
     const updated = {
@@ -131,6 +139,8 @@ export function RoutePlanning() {
       name: newRouteName,
       status: "draft",
       takeoffAlt: 30, landingAlt: 20, direction: 0, returnSpeed: 12, flySpeed: 8,
+      type: "单次",
+      description: "",
       waypoints: [
         { id: 1, lat: 30.5928, lng: 114.3055, altitude: 100, speed: 8, hoverTime: 10, action: "拍照", gimbalPitch: -45, yawMode: "自动", x: 50, y: 50 },
       ],
@@ -145,6 +155,41 @@ export function RoutePlanning() {
     const updated = { ...selectedRoute, [field]: value };
     setSelectedRoute(updated);
     setRoutes((p) => p.map((r) => (r.id === selectedRoute.id ? updated : r)));
+
+  };
+  const handleSave = () => {
+      // 显示提示
+    setShowToast(true);
+      // 3秒后自动隐藏
+    setTimeout(() => setShowToast(false), 3000);
+  };
+  const handleExecute = () => {
+  setShowConfirm(true);
+  };
+
+  const confirmExecute = () => {
+    setShowConfirm(false);
+    // 这里可以添加实际执行航线的逻辑
+    // 例如：调用API、显示执行中状态等
+    alert(`正在执行航线：${selectedRoute.name}`);
+  };
+
+  const cancelExecute = () => {
+    setShowConfirm(false);
+  };
+      // 经纬度转百分比（用于地图显示）
+  // 纬度范围：30.58 ~ 30.60，经度范围：114.29 ~ 114.34
+  const latToPercent = (lat: number) => {
+  const minLat = 30.58;
+  const maxLat = 30.60;
+  // 反转纬度：纬度越高，百分比越小（越靠上）
+  return ((maxLat - lat) / (maxLat - minLat)) * 100;
+  };
+
+  const lngToPercent = (lng: number) => {
+    const minLng = 114.29;
+    const maxLng = 114.34;
+    return ((lng - minLng) / (maxLng - minLng)) * 100;
   };
 
   return (
@@ -276,7 +321,7 @@ export function RoutePlanning() {
           {selectedRoute.waypoints.length > 1 && (
             <>
               <polyline
-                points={selectedRoute.waypoints.map((wp) => `${wp.x}%,${wp.y}%`).join(" ")}
+                points={selectedRoute.waypoints.map((wp) => `${wp.lng}%,${wp.lat}%`).join(" ")}
                 fill="none"
                 stroke="#00b4ff"
                 strokeWidth="2"
@@ -285,10 +330,10 @@ export function RoutePlanning() {
               />
               {/* Return path dashed */}
               <line
-                x1={`${selectedRoute.waypoints[selectedRoute.waypoints.length - 1].x}%`}
-                y1={`${selectedRoute.waypoints[selectedRoute.waypoints.length - 1].y}%`}
-                x2={`${selectedRoute.waypoints[0].x}%`}
-                y2={`${selectedRoute.waypoints[0].y}%`}
+                x1={`${lngToPercent(selectedRoute.waypoints[selectedRoute.waypoints.length - 1].lng)}%`}
+                y1={`${latToPercent(selectedRoute.waypoints[selectedRoute.waypoints.length - 1].lat)}%`}
+                x2={`${lngToPercent(selectedRoute.waypoints[0].lng)}%`}
+                y2={`${latToPercent(selectedRoute.waypoints[0].lat)}%`}
                 stroke="#a855f7"
                 strokeWidth="1.5"
                 strokeDasharray="4,4"
@@ -299,8 +344,8 @@ export function RoutePlanning() {
           {/* Direction arrows */}
           {selectedRoute.waypoints.slice(0, -1).map((wp, i) => {
             const next = selectedRoute.waypoints[i + 1];
-            const mx = (wp.x + next.x) / 2;
-            const my = (wp.y + next.y) / 2;
+            const mx = (lngToPercent(wp.lng) + lngToPercent(next.lng)) / 2;
+            const my = (latToPercent(wp.lat) + latToPercent(next.lat)) / 2;
             return (
               <circle key={i} cx={`${mx}%`} cy={`${my}%`} r="3" fill="#00b4ff" opacity="0.5" />
             );
@@ -312,7 +357,7 @@ export function RoutePlanning() {
           <div
             key={wp.id}
             className="absolute cursor-pointer"
-            style={{ left: `${wp.x}%`, top: `${wp.y}%`, transform: "translate(-50%, -50%)", zIndex: 10 }}
+            style={{ left: `${lngToPercent(wp.lng)}%`, top: `${latToPercent(wp.lat)}%`, transform: "translate(-50%, -50%)", zIndex: 10 }}
             onClick={() => setSelectedWaypoint(selectedWaypoint?.id === wp.id ? null : wp)}
           >
             <div className="relative flex items-center justify-center">
@@ -388,19 +433,119 @@ export function RoutePlanning() {
               { label: "航线方向(°)", field: "direction", value: selectedRoute.direction },
               { label: "飞行速度(m/s)", field: "flySpeed", value: selectedRoute.flySpeed },
               { label: "返航速度(m/s)", field: "returnSpeed", value: selectedRoute.returnSpeed },
-            ].map(({ label, field, value }) => (
-              <div key={field} className={field === "direction" ? "col-span-2" : ""}>
-                <label style={{ color: "#6b8299", fontSize: "10px", display: "block", marginBottom: "4px" }}>{label}</label>
-                <input
-                  type="number"
-                  value={value}
-                  onChange={(e) => updateRouteParam(field as keyof Route, Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-lg outline-none"
+            ].map(({ label, field, value }) => {
+              // 如果是航线方向，显示带罗盘的输入框
+              if (field === "direction") {
+                return (
+                  <div key={field} className="col-span-2">
+                    <label style={{ color: "#6b8299", fontSize: "10px", display: "block", marginBottom: "4px" }}>{label}</label>
+                    <div className="flex gap-3 items-center">
+                      <input
+                        type="number"
+                        value={value}
+                        onChange={(e) => updateRouteParam(field as keyof Route, Number(e.target.value))}
+                        className="flex-1 px-3 py-2 rounded-lg outline-none"
+                        style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "12px" }}
+                      />
+                      {/* 罗盘指示器 */}
+                      <div 
+                        className="w-12 h-12 rounded-full flex items-center justify-center relative"
+                        style={{ 
+                          background: "#060c1a", 
+                          border: "1px solid #1e2d4a",
+                        }}
+                      >
+                        {/* 刻度线 - 四个方向 */}
+                        <div className="absolute inset-0 rounded-full">
+                          <div style={{ position: "absolute", top: "4px", left: "50%", transform: "translateX(-50%)", color: "#ef4444", fontSize: "10px", fontWeight: "bold" }}>N</div>
+                          <div style={{ position: "absolute", right: "6px", top: "50%", transform: "translateY(-50%)", color: "#6b8299", fontSize: "10px" }}>E</div>
+                          <div style={{ position: "absolute", bottom: "4px", left: "50%", transform: "translateX(-50%)", color: "#6b8299", fontSize: "10px" }}>S</div>
+                          <div style={{ position: "absolute", left: "6px", top: "50%", transform: "translateY(-50%)", color: "#6b8299", fontSize: "10px" }}>W</div>
+                        </div>
+                        
+                        {/* 指针 */}
+                        <div 
+                          className="absolute w-0.5 h-4 rounded-full"
+                          style={{
+                            background: "#00b4ff",
+                            transformOrigin: "bottom center",
+                            transform: `rotate(${selectedRoute.direction}deg) translateY(-8px)`,
+                            bottom: "50%",
+                            left: "50%",
+                            marginLeft: "-1px",
+                          }}
+                        />
+                        {/* 中心点 */}
+                        <div className="w-1.5 h-1.5 rounded-full bg-white absolute" />
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              
+              // 其他字段正常显示
+              return (
+                <div key={field} className={field === "direction" ? "col-span-2" : ""}>
+                  <label style={{ color: "#6b8299", fontSize: "10px", display: "block", marginBottom: "4px" }}>{label}</label>
+                  <input
+                    type="number"
+                    value={value}
+                    onChange={(e) => updateRouteParam(field as keyof Route, Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-lg outline-none"
+                    style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "12px" }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* 航线类型 */}
+          <div className="mt-4">
+            <label style={{ color: "#6b8299", fontSize: "10px", display: "block", marginBottom: "4px" }}>航线类型</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => updateRouteParam("type", "单次")}
+                style={{
+                  flex: 1,
+                  background: selectedRoute.type === "单次" ? "rgba(0,180,255,0.3)" : "#060c1a",
+                  border: `1px solid ${selectedRoute.type === "单次" ? "#00b4ff" : "#1e2d4a"}`,
+                  color: selectedRoute.type === "单次" ? "#00b4ff" : "#6b8299",
+                  padding: "6px 0",
+                  borderRadius: "6px",
+                  fontSize: "11px",
+                }}
+              >
+                单次
+              </button>
+              <button
+                onClick={() => updateRouteParam("type", "循环")}
+                style={{
+                  flex: 1,
+                  background: selectedRoute.type === "循环" ? "rgba(0,180,255,0.3)" : "#060c1a",
+                  border: `1px solid ${selectedRoute.type === "循环" ? "#00b4ff" : "#1e2d4a"}`,
+                  color: selectedRoute.type === "循环" ? "#00b4ff" : "#6b8299",
+                  padding: "6px 0",
+                  borderRadius: "6px",
+                  fontSize: "11px",
+                }}
+              >
+                循环
+              </button>
+            </div>
+          </div>
+
+          {/* 航线描述 */}
+              <div className="mt-4">
+                <label style={{ color: "#6b8299", fontSize: "10px", display: "block", marginBottom: "4px" }}>航线描述</label>
+                <textarea
+                  value={selectedRoute.description || ""}
+                  onChange={(e) => updateRouteParam("description", e.target.value)}
+                  placeholder="输入航线说明信息..."
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg outline-none resize-none"
                   style={{ background: "#060c1a", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "12px" }}
                 />
               </div>
-            ))}
-          </div>
         </div>
 
         {/* Waypoints */}
@@ -469,6 +614,29 @@ export function RoutePlanning() {
                 {/* Expanded Settings */}
                 {expandedWp === wp.id && (
                   <div className="px-3 pb-3 grid grid-cols-2 gap-2">
+                    {/* 经纬度 */}
+                    <div>
+                      <label style={{ color: "#4a6080", fontSize: "9px", display: "block", marginBottom: "3px" }}>纬度</label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        value={wp.lat}
+                        onChange={(e) => updateWaypoint(wp.id, "lat", parseFloat(e.target.value))}
+                        className="w-full px-2 py-1 rounded outline-none"
+                        style={{ background: "#0b1120", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "11px" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ color: "#4a6080", fontSize: "9px", display: "block", marginBottom: "3px" }}>经度</label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        value={wp.lng}
+                        onChange={(e) => updateWaypoint(wp.id, "lng", parseFloat(e.target.value))}
+                        className="w-full px-2 py-1 rounded outline-none"
+                        style={{ background: "#0b1120", border: "1px solid #1e2d4a", color: "#e2e8f0", fontSize: "11px" }}
+                      />
+                    </div>
                     {[
                       { label: "高度(m)", field: "altitude", value: wp.altitude },
                       { label: "速度(m/s)", field: "speed", value: wp.speed },
@@ -518,12 +686,14 @@ export function RoutePlanning() {
         {/* Save Button */}
         <div className="p-4 flex gap-3" style={{ borderTop: "1px solid #1e2d4a" }}>
           <button
+            onClick={handleSave}
             className="flex-1 py-2.5 rounded-lg flex items-center justify-center gap-2"
             style={{ background: "linear-gradient(135deg, #0055cc, #00b4ff)", color: "#fff", fontSize: "13px" }}
           >
             <Save size={13} /> 保存航线
           </button>
           <button
+            onClick={handleExecute}
             className="px-4 py-2.5 rounded-lg flex items-center justify-center gap-2"
             style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", color: "#22c55e", fontSize: "13px" }}
           >
@@ -531,6 +701,51 @@ export function RoutePlanning() {
           </button>
         </div>
       </div>
+      {/* 保存提示 Toast */}
+      {showToast && (
+        <div
+          className="fixed bottom-20 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-50"
+          style={{
+            background: "#22c55e",
+            color: "#fff",
+            fontSize: "14px",
+          }}
+        >
+          ✅ 航线保存成功！
+        </div>
+      )}
+      {/* 执行确认弹窗 */}
+      {showConfirm && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={cancelExecute}
+        >
+          <div
+            className="bg-[#0b1120] rounded-xl p-5 w-80 border border-[#1e2d4a]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-white text-lg font-semibold mb-2">确认执行</h3>
+            <p className="text-[#94a3b8] text-sm mb-4">
+              确定要执行航线「{selectedRoute.name}」吗？
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={confirmExecute}
+                className="flex-1 py-2 rounded-lg bg-gradient-to-r from-[#0055cc] to-[#00b4ff] text-white text-sm"
+              >
+                确认执行
+              </button>
+              <button
+                onClick={cancelExecute}
+                className="flex-1 py-2 rounded-lg bg-[#060c1a] border border-[#1e2d4a] text-[#94a3b8] text-sm"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
