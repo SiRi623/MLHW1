@@ -1,1 +1,3 @@
 node_modules
+# 忽略视频文件
+public/videos/
