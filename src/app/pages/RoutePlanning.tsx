@@ -290,29 +290,13 @@ export function RoutePlanning() {
           </button>
         </div>
 
-        {/* Map */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: "#060c18",
-            backgroundImage: "linear-gradient(rgba(0,100,200,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,100,200,0.06) 1px, transparent 1px)",
-            backgroundSize: "40px 40px",
-          }}
-        >
-          {/* City Block Shapes */}
-          <svg className="absolute inset-0 w-full h-full" style={{ opacity: 0.15 }}>
-            <rect x="10%" y="20%" width="15%" height="10%" fill="#00b4ff" opacity="0.1" stroke="#00b4ff" strokeWidth="0.5" rx="2" />
-            <rect x="30%" y="15%" width="20%" height="12%" fill="#00b4ff" opacity="0.1" stroke="#00b4ff" strokeWidth="0.5" rx="2" />
-            <rect x="55%" y="22%" width="18%" height="15%" fill="#00b4ff" opacity="0.1" stroke="#00b4ff" strokeWidth="0.5" rx="2" />
-            <rect x="12%" y="45%" width="22%" height="18%" fill="#00b4ff" opacity="0.1" stroke="#00b4ff" strokeWidth="0.5" rx="2" />
-            <rect x="40%" y="50%" width="16%" height="20%" fill="#00b4ff" opacity="0.1" stroke="#00b4ff" strokeWidth="0.5" rx="2" />
-            <rect x="65%" y="55%" width="20%" height="15%" fill="#00b4ff" opacity="0.1" stroke="#00b4ff" strokeWidth="0.5" rx="2" />
-            {/* Roads */}
-            <line x1="0" y1="38%" x2="100%" y2="38%" stroke="#1e4080" strokeWidth="3" />
-            <line x1="0" y1="65%" x2="100%" y2="65%" stroke="#1e4080" strokeWidth="2" />
-            <line x1="28%" y1="0" x2="28%" y2="100%" stroke="#1e4080" strokeWidth="3" />
-            <line x1="60%" y1="0" x2="60%" y2="100%" stroke="#1e4080" strokeWidth="2" />
-          </svg>
+        {/* Map - 使用本地图片作为背景 */}
+        <div className="absolute inset-0">
+          <img
+            src="/picture/1.png"
+            alt="地图背景"
+            className="w-full h-full object-cover"
+          />
         </div>
 
         {/* Route SVG */}
